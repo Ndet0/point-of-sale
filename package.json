@@ -1,0 +1,20 @@
+{
+  "name": "point-of-sale",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:studio": "npm run db:studio -w backend",
+    "db:seed": "npm run db:seed -w backend",
+    "lint": "npm run lint -w backend && npm run lint -w frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TENANT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Business {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings   BusinessSettings?
+  users      User[]
+  categories Category[]
+  products   Product[]
+  sales      Sale[]
+  payments   Payment[]
+  callbackLogs MpesaCallbackLog[]
+}
+
+model BusinessSettings {
+  id         String   @id @default(uuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Sale timeout config
+  // "fixed": timeout after saleTimeoutMinutes from creation
+  // "pickup_window": timeout at pickupWindowEnd on the same day
+  saleTimeoutMode    String  @default("fixed")   // "fixed" | "pickup_window"
+  saleTimeoutMinutes Int     @default(30)         // used when mode = "fixed"
+  pickupWindowStart  String? @default("08:00")   // "HH:mm", used when mode = "pickup_window"
+  pickupWindowEnd    String? @default("20:00")   // "HH:mm", used when mode = "pickup_window"
+
+  allowManualPaymentOverride Boolean @default(true)
+  currency                   String  @default("KES")
+  taxRate                    Decimal @default(0) @db.Decimal(5, 4) // e.g. 0.1600 = 16% VAT
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name      String
+  email     String
+  password  String   // bcrypt hash
+  role      Role     @default(CASHIER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales         Sale[]
+  overrides     Payment[]      @relation("PaymentOverrides")
+  refreshTokens RefreshToken[]
+
+  @@unique([email, businessId])
+  @@index([businessId])
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@unique([name, businessId])
+  @@index([businessId])
+}
+
+model Product {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  name             String
+  description      String?
+  sku              String?
+  price            Decimal  @db.Decimal(10, 2) // stored in base currency unit (KES)
+  stockQuantity    Int      @default(0)
+  reservedQuantity Int      @default(0)         // held by PENDING sales
+  lowStockAlert    Int      @default(5)
+  isActive         Boolean  @default(true)
+  deletedAt        DateTime?                    // soft delete: preserve historical sale refs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saleItems SaleItem[]
+
+  @@unique([sku, businessId])
+  @@index([businessId])
+  @@index([businessId, isActive])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SALES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Sale {
+  id         String     @id @default(uuid())
+  businessId String
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+
+  status   SaleStatus @default(PENDING)
+  subtotal Decimal    @db.Decimal(10, 2)
+  tax      Decimal    @db.Decimal(10, 2) @default(0)
+  total    Decimal    @db.Decimal(10, 2)
+  notes    String?
+
+  // Cafe/bakery pickup window
+  pickupAt  DateTime? // customer-specified pickup time (optional)
+  timeoutAt DateTime  // computed at creation: when this PENDING sale expires
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items   SaleItem[]
+  payment Payment?
+
+  @@index([businessId, createdAt])
+  @@index([businessId, status])
+  @@index([status, timeoutAt]) // used by the timeout cleanup job
+}
+
+enum SaleStatus {
+  PENDING    // awaiting payment
+  COMPLETED  // payment confirmed
+  CANCELLED  // manually cancelled
+  ABANDONED  // timed out without payment
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) // price snapshot at time of sale
+  total     Decimal @db.Decimal(10, 2)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Payment {
+  id         String        @id @default(uuid())
+  businessId String
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  saleId     String        @unique
+  sale       Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  method   PaymentMethod
+  status   PaymentStatus @default(PENDING)
+  amount   Decimal       @db.Decimal(10, 2)
+  currency String        @default("KES")
+
+  // Mpesa-specific fields (null for CASH / MANUAL)
+  mpesaCheckoutRequestId  String? @unique
+  mpesaMerchantRequestId  String?
+  mpesaReceiptNumber      String?
+  mpesaPhoneNumber        String?
+
+  // Manual override audit trail (cashier override when Mpesa is down)
+  overrideReason   String?
+  overrideByUserId String?
+  overrideBy       User?     @relation("PaymentOverrides", fields: [overrideByUserId], references: [id])
+  overrideAt       DateTime?
+
+  // Processing metadata
+  processedAt   DateTime?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([mpesaCheckoutRequestId])
+  @@index([businessId, createdAt])
+}
+
+enum PaymentMethod {
+  MPESA
+  CASH
+  MANUAL // cashier-confirmed when Mpesa is unavailable
+}
+
+enum PaymentStatus {
+  PENDING  // STK Push sent, awaiting callback
+  SUCCESS
+  FAILED
+  OVERRIDE // manually confirmed by cashier (audit trail required)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MPESA AUDIT LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MpesaCallbackLog {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  checkoutRequestId String?
+  payload           Json     // raw Safaricom callback payload
+  processed         Boolean  @default(false)
+  error             String?  // processing error message if any
+
+  createdAt DateTime @default(now())
+
+  @@index([checkoutRequestId])
+  @@index([businessId, createdAt])
+}
