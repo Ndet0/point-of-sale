@@ -6,6 +6,7 @@ interface AuthUser {
   name: string;
   role: 'ADMIN' | 'CASHIER';
   businessId: string;
+  businessName: string;
 }
 
 interface AuthState {

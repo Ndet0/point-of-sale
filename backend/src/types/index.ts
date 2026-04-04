@@ -1,14 +1,10 @@
 import { Role } from '@prisma/client';
 import { Request } from 'express';
 
-// Authenticated request — always has user + businessId injected by middleware
+// Re-export Express Request with required user property (augmented in express.d.ts)
+// In authenticated routes, user is guaranteed to exist by the authenticate middleware
 export interface AuthRequest extends Request {
-  user: {
-    id: string;
-    businessId: string;
-    role: Role;
-    email: string;
-  };
+  user: NonNullable<Request['user']>;
 }
 
 // Standard API response envelope

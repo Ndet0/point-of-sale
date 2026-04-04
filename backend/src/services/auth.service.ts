@@ -16,7 +16,7 @@ interface RegisterInput {
 interface LoginInput {
   email: string;
   password: string;
-  businessId: string;
+  businessId?: string;
 }
 
 function signAccessToken(payload: { sub: string; businessId: string; role: Role; email: string }): string {
@@ -76,15 +76,34 @@ export class AuthService {
       },
     });
 
-    return { accessToken, refreshToken, user: { id: user.id, name: user.name, role: user.role }, business };
+    return { accessToken, refreshToken, user: { id: user.id, name: user.name, role: user.role, businessId: business.id, businessName: business.name }, business };
   }
 
   async login(input: LoginInput) {
-    const user = await prisma.user.findFirst({
-      where: { email: input.email, businessId: input.businessId, isActive: true },
+    // Find users with this email across businesses
+    const users = await prisma.user.findMany({
+      where: { 
+        email: input.email, 
+        isActive: true,
+        ...(input.businessId && { businessId: input.businessId }),
+      },
+      include: { business: { select: { id: true, name: true } } },
     });
 
-    if (!user || !(await bcrypt.compare(input.password, user.password))) {
+    if (users.length === 0) {
+      throw new AppError(401, 'Invalid credentials');
+    }
+
+    // If multiple businesses have this email and no businessId provided, require businessId
+    if (users.length > 1) {
+      throw new AppError(400, 'Multiple accounts found. Please specify businessId.', {
+        businesses: users.map(u => ({ id: u.businessId, name: u.business.name }))
+      });
+    }
+
+    const user = users[0];
+
+    if (!(await bcrypt.compare(input.password, user.password))) {
       throw new AppError(401, 'Invalid credentials');
     }
 
@@ -107,7 +126,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: { id: user.id, name: user.name, role: user.role, businessId: user.businessId },
+      user: { id: user.id, name: user.name, role: user.role, businessId: user.businessId, businessName: user.business.name },
     };
   }
 

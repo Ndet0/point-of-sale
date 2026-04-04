@@ -6,7 +6,8 @@ import { logger } from '@/lib/logger';
 export class AppError extends Error {
   constructor(
     public statusCode: number,
-    message: string
+    message: string,
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'AppError';
@@ -33,7 +34,11 @@ export function errorMiddleware(
 
   // Known application errors
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({ success: false, error: err.message });
+    res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+      ...(err.details && { details: err.details }),
+    });
     return;
   }
 

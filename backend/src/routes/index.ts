@@ -5,6 +5,7 @@ import { categoryRoutes } from './category.routes';
 import { saleRoutes } from './sale.routes';
 import { paymentRoutes } from './payment.routes';
 import { settingsRoutes } from './settings.routes';
+import { userRoutes } from './user.routes';
 
 export const router = Router();
 
@@ -14,3 +15,4 @@ router.use('/categories', categoryRoutes);
 router.use('/sales', saleRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/users', userRoutes);

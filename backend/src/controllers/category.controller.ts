@@ -15,7 +15,7 @@ export class CategoryController {
       const categories = await prisma.category.findMany({
         where: { businessId: req.user.businessId, isActive: true },
         orderBy: { name: 'asc' },
-        include: { _count: { select: { products: true } } },
+        include: { products: { where: { isActive: true, deletedAt: null } } },
       });
       res.json({ success: true, data: categories });
     } catch (err) {
@@ -39,11 +39,11 @@ export class CategoryController {
     try {
       const data = categorySchema.partial().parse(req.body);
       const existing = await prisma.category.findFirst({
-        where: { id: req.params.id, businessId: req.user.businessId },
+        where: { id: req.params.id as string, businessId: req.user.businessId },
       });
       if (!existing) throw new AppError(404, 'Category not found');
 
-      const updated = await prisma.category.update({ where: { id: req.params.id }, data });
+      const updated = await prisma.category.update({ where: { id: req.params.id as string }, data });
       res.json({ success: true, data: updated });
     } catch (err) {
       next(err);
@@ -53,16 +53,16 @@ export class CategoryController {
   remove = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const existing = await prisma.category.findFirst({
-        where: { id: req.params.id, businessId: req.user.businessId },
-        include: { _count: { select: { products: true } } },
+        where: { id: req.params.id as string, businessId: req.user.businessId },
+        include: { products: { where: { isActive: true, deletedAt: null } } },
       });
       if (!existing) throw new AppError(404, 'Category not found');
-      if (existing._count.products > 0) {
+      if (existing.products.length > 0) {
         throw new AppError(400, 'Cannot delete category with existing products');
       }
 
       await prisma.category.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { isActive: false },
       });
       res.json({ success: true, message: 'Category removed' });

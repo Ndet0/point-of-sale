@@ -13,7 +13,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  businessId: z.string().uuid(),
+  businessId: z.string().optional(),
 });
 
 const service = new AuthService();

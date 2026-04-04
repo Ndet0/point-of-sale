@@ -35,7 +35,7 @@ export class SaleController {
 
   getById = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const sale = await service.getById(req.params.id, req.user.businessId);
+      const sale = await service.getById(req.params.id as string, req.user.businessId);
       res.json({ success: true, data: sale });
     } catch (err) {
       next(err);
@@ -66,7 +66,7 @@ export class SaleController {
 
   cancel = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await service.cancel(req.params.id, req.user.businessId);
+      await service.cancel(req.params.id as string, req.user.businessId);
       res.json({ success: true, message: 'Sale cancelled' });
     } catch (err) {
       next(err);

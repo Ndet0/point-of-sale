@@ -42,7 +42,7 @@ export class ProductController {
   getById = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const product = await prisma.product.findFirst({
-        where: { id: req.params.id, businessId: req.user.businessId, deletedAt: null },
+        where: { id: req.params.id as string, businessId: req.user.businessId, deletedAt: null },
         include: { category: { select: { name: true } } },
       });
       if (!product) throw new AppError(404, 'Product not found');
@@ -68,11 +68,11 @@ export class ProductController {
     try {
       const data = productSchema.partial().parse(req.body);
       const product = await prisma.product.findFirst({
-        where: { id: req.params.id, businessId: req.user.businessId, deletedAt: null },
+        where: { id: req.params.id as string, businessId: req.user.businessId, deletedAt: null },
       });
       if (!product) throw new AppError(404, 'Product not found');
 
-      const updated = await prisma.product.update({ where: { id: req.params.id }, data });
+      const updated = await prisma.product.update({ where: { id: req.params.id as string }, data });
       res.json({ success: true, data: updated });
     } catch (err) {
       next(err);
@@ -82,12 +82,12 @@ export class ProductController {
   softDelete = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const product = await prisma.product.findFirst({
-        where: { id: req.params.id, businessId: req.user.businessId, deletedAt: null },
+        where: { id: req.params.id as string, businessId: req.user.businessId, deletedAt: null },
       });
       if (!product) throw new AppError(404, 'Product not found');
 
       await prisma.product.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { deletedAt: new Date(), isActive: false },
       });
       res.json({ success: true, message: 'Product archived' });
