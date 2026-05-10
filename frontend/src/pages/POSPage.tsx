@@ -283,7 +283,7 @@ export default function POSPage() {
                   <p className="text-sm text-gray-500 truncate">{product.category?.name}</p>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-lg font-bold text-indigo-600">
-                      KES {product.price.toFixed(2)}
+                      KES {Number(product.price).toFixed(2)}
                     </span>
                     <span
                       className={`text-xs px-2 py-1 rounded ${
@@ -357,7 +357,7 @@ export default function POSPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-gray-900 truncate">{item.product.name}</h4>
-                    <p className="text-sm text-gray-500">KES {item.product.price.toFixed(2)} each</p>
+                    <p className="text-sm text-gray-500">KES {Number(item.product.price).toFixed(2)} each</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -392,15 +392,15 @@ export default function POSPage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span>KES {cartTotals.subtotal.toFixed(2)}</span>
+                <span>KES {Number(cartTotals.subtotal).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Tax (16%)</span>
-                <span>KES {cartTotals.tax.toFixed(2)}</span>
+                <span>KES {Number(cartTotals.tax).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold pt-2 border-t">
                 <span className="text-gray-900">Total</span>
-                <span className="text-indigo-600">KES {cartTotals.total.toFixed(2)}</span>
+                <span className="text-indigo-600">KES {Number(cartTotals.total).toFixed(2)}</span>
               </div>
             </div>
             <button
@@ -437,22 +437,22 @@ export default function POSPage() {
                     <span>
                       {item.quantity}x {item.product.name}
                     </span>
-                    <span>KES {(item.product.price * item.quantity).toFixed(2)}</span>
+                    <span>KES {(Number(item.product.price) * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
               <div className="border-t pt-2 space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span>KES {cartTotals.subtotal.toFixed(2)}</span>
+                  <span>KES {Number(cartTotals.subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax (16%)</span>
-                  <span>KES {cartTotals.tax.toFixed(2)}</span>
+                  <span>KES {Number(cartTotals.tax).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span className="text-indigo-600">KES {cartTotals.total.toFixed(2)}</span>
+                  <span className="text-indigo-600">KES {Number(cartTotals.total).toFixed(2)}</span>
                 </div>
               </div>
             </div>
